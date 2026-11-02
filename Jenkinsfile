@@ -1,8 +1,17 @@
+
 pipeline {
     agent any
 
-    stages {
+    environment {
+        AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '025881472816'
+        ECR_REPOSITORY = 'aws-devops-app'
+        IMAGE_TAG = 'v2'
+        ECR_REGISTRY = '025881472816.dkr.ecr.ap-south-1.amazonaws.com'
+        ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+    }
 
+    stages {
         stage('Checkout') {
             steps {
                 echo 'Fetching source code from GitHub'
@@ -13,7 +22,6 @@ pipeline {
         stage('Validate Python') {
             steps {
                 sh 'python3 -m py_compile app.py'
-                echo 'Python validation successful'
             }
         }
 
@@ -27,7 +35,6 @@ pipeline {
             steps {
                 sh '''
                     set -e
-
                     docker rm -f ci-test-app 2>/dev/null || true
 
                     docker run -d \
@@ -44,8 +51,26 @@ pipeline {
                         sleep 2
                     done
 
-                    echo "Application health check failed"
+                    echo "Health check failed"
                     exit 1
+                '''
+            }
+        }
+
+        stage('Login to AWS ECR') {
+            steps {
+                sh '''
+                    aws ecr get-login-password --region $AWS_REGION |
+                    docker login --username AWS --password-stdin $ECR_REGISTRY
+                '''
+            }
+        }
+
+        stage('Tag and Push to ECR') {
+            steps {
+                sh '''
+                    docker tag aws-devops-app:v2 $ECR_IMAGE
+                    docker push $ECR_IMAGE
                 '''
             }
         }
@@ -53,11 +78,10 @@ pipeline {
 
     post {
         success {
-            echo 'CI pipeline completed successfully!'
+            echo 'CI pipeline successful! Docker image pushed to AWS ECR.'
         }
-
         failure {
-            echo 'CI pipeline failed. Check the console output.'
+            echo 'Pipeline failed. Check the console output.'
         }
     }
 }
