@@ -73,6 +73,26 @@ pipeline {
                     docker push $ECR_IMAGE
                 '''
             }
+
+stage('Deploy to ECS') {
+    steps {
+        echo 'Deploying latest Docker image to ECS Fargate'
+
+        sh '''
+            aws ecs update-service \
+              --cluster aws-devops-cluster \
+              --service aws-devops-service \
+              --force-new-deployment \
+              --region ap-south-1
+
+            aws ecs wait services-stable \
+              --cluster aws-devops-cluster \
+              --services aws-devops-service \
+              --region ap-south-1
+        '''
+    }
+}
+
         }
     }
 
