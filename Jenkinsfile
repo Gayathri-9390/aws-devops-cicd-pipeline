@@ -85,10 +85,57 @@ pipeline {
                       --force-new-deployment \
                       --region $AWS_REGION
 
-                    aws ecs wait services-stable \
-                      --cluster aws-devops-cluster \
-                      --services aws-devops-service \
-                      --region $AWS_REGION
+                    echo "Waiting for ECS deployment to complete..."
+
+for i in $(seq 1 60); do
+
+    ROLLOUT=$(aws ecs describe-services \
+      --cluster aws-devops-cluster \
+      --services aws-devops-service \
+      --region $AWS_REGION \
+      --query 'services[0].deployments[?status==`PRIMARY`].rolloutState | [0]' \
+      --output text)
+
+    RUNNING=$(aws ecs describe-services \
+      --cluster aws-devops-cluster \
+      --services aws-devops-service \
+      --region $AWS_REGION \
+      --query 'services[0].runningCount' \
+      --output text)
+
+    DESIRED=$(aws ecs describe-services \
+      --cluster aws-devops-cluster \
+      --services aws-devops-service \
+      --region $AWS_REGION \
+      --query 'services[0].desiredCount' \
+      --output text)
+
+    PENDING=$(aws ecs describe-services \
+      --cluster aws-devops-cluster \
+      --services aws-devops-service \
+      --region $AWS_REGION \
+      --query 'services[0].pendingCount' \
+      --output text)
+
+    echo "Rollout: $ROLLOUT | Running: $RUNNING | Desired: $DESIRED | Pending: $PENDING"
+
+    if [ "$ROLLOUT" = "COMPLETED" ] && \
+       [ "$RUNNING" = "$DESIRED" ] && \
+       [ "$PENDING" = "0" ]; then
+        echo "ECS deployment completed successfully!"
+        exit 0
+    fi
+
+    if [ "$ROLLOUT" = "FAILED" ]; then
+        echo "ECS deployment failed!"
+        exit 1
+    fi
+
+    sleep 15
+done
+
+echo "ECS deployment timed out after 15 minutes."
+exit 1
                 '''
             }
         }
