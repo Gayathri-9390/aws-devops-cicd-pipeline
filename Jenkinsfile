@@ -4,10 +4,9 @@ pipeline {
 
     environment {
         AWS_REGION = 'ap-south-1'
-        AWS_ACCOUNT_ID = '025881472816'
+        ECR_REGISTRY = '025881472816.dkr.ecr.ap-south-1.amazonaws.com'
         ECR_REPOSITORY = 'aws-devops-app'
         IMAGE_TAG = 'v2'
-        ECR_REGISTRY = '025881472816.dkr.ecr.ap-south-1.amazonaws.com'
         ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
     }
 
@@ -73,35 +72,36 @@ pipeline {
                     docker push $ECR_IMAGE
                 '''
             }
+        }
 
-stage('Deploy to ECS') {
-    steps {
-        echo 'Deploying latest Docker image to ECS Fargate'
+        stage('Deploy to ECS') {
+            steps {
+                echo 'Deploying application to ECS Fargate'
 
-        sh '''
-            aws ecs update-service \
-              --cluster aws-devops-cluster \
-              --service aws-devops-service \
-              --force-new-deployment \
-              --region ap-south-1
+                sh '''
+                    aws ecs update-service \
+                      --cluster aws-devops-cluster \
+                      --service aws-devops-service \
+                      --force-new-deployment \
+                      --region $AWS_REGION
 
-            aws ecs wait services-stable \
-              --cluster aws-devops-cluster \
-              --services aws-devops-service \
-              --region ap-south-1
-        '''
-    }
-}
-
+                    aws ecs wait services-stable \
+                      --cluster aws-devops-cluster \
+                      --services aws-devops-service \
+                      --region $AWS_REGION
+                '''
+            }
         }
     }
 
     post {
         success {
-            echo 'CI pipeline successful! Docker image pushed to AWS ECR.'
+            echo 'CI/CD pipeline completed successfully!'
         }
+
         failure {
-            echo 'Pipeline failed. Check the console output.'
+            echo 'Pipeline failed. Check Console Output.'
         }
     }
 }
+
