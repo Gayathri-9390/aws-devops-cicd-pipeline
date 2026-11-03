@@ -25,10 +25,10 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t aws-devops-app:v2 .'
-            }
-        }
+    steps {
+        sh 'docker build -t aws-devops-app:$IMAGE_TAG .'
+    }
+}
 
         stage('Test Application') {
             steps {
@@ -39,7 +39,7 @@ pipeline {
                     docker run -d \
                       --name ci-test-app \
                       -p 127.0.0.1:5001:5000 \
-                      aws-devops-app:v2
+                      aws-devops-app:$IMAGE_TAG
 
                     trap 'docker rm -f ci-test-app >/dev/null 2>&1 || true' EXIT
 
@@ -66,89 +66,138 @@ pipeline {
         }
 
         stage('Tag and Push to ECR') {
-            steps {
-                sh '''
-                    docker tag aws-devops-app:v2 $ECR_IMAGE
-                    docker push $ECR_IMAGE
-                '''
-            }
-        }
-
-        stage('Deploy to ECS') {
-            steps {
-                echo 'Deploying application to ECS Fargate'
-
-                sh '''
-                    aws ecs update-service \
-                      --cluster aws-devops-cluster \
-                      --service aws-devops-service \
-                      --force-new-deployment \
-                      --region $AWS_REGION
-
-                    echo "Waiting for ECS deployment to complete..."
-
-for i in $(seq 1 60); do
-
-    ROLLOUT=$(aws ecs describe-services \
-      --cluster aws-devops-cluster \
-      --services aws-devops-service \
-      --region $AWS_REGION \
-      --query 'services[0].deployments[?status==`PRIMARY`].rolloutState | [0]' \
-      --output text)
-
-    RUNNING=$(aws ecs describe-services \
-      --cluster aws-devops-cluster \
-      --services aws-devops-service \
-      --region $AWS_REGION \
-      --query 'services[0].runningCount' \
-      --output text)
-
-    DESIRED=$(aws ecs describe-services \
-      --cluster aws-devops-cluster \
-      --services aws-devops-service \
-      --region $AWS_REGION \
-      --query 'services[0].desiredCount' \
-      --output text)
-
-    PENDING=$(aws ecs describe-services \
-      --cluster aws-devops-cluster \
-      --services aws-devops-service \
-      --region $AWS_REGION \
-      --query 'services[0].pendingCount' \
-      --output text)
-
-    echo "Rollout: $ROLLOUT | Running: $RUNNING | Desired: $DESIRED | Pending: $PENDING"
-
-    if [ "$ROLLOUT" = "COMPLETED" ] && \
-       [ "$RUNNING" = "$DESIRED" ] && \
-       [ "$PENDING" = "0" ]; then
-        echo "ECS deployment completed successfully!"
-        exit 0
-    fi
-
-    if [ "$ROLLOUT" = "FAILED" ]; then
-        echo "ECS deployment failed!"
-        exit 1
-    fi
-
-    sleep 15
-done
-
-echo "ECS deployment timed out after 15 minutes."
-exit 1
-                '''
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'CI/CD pipeline completed successfully!'
-        }
-
-        failure {
-            echo 'Pipeline failed. Check Console Output.'
-        }
+    steps {
+        sh '''
+            docker tag aws-devops-app:$IMAGE_TAG $ECR_IMAGE
+            docker push $ECR_IMAGE
+        '''
     }
 }
 
+
+stage('Deploy to ECS') {
+    steps {
+        echo 'Deploying unique Docker image to ECS Fargate'
+
+        sh '''
+            set -e
+
+            echo "Retrieving current ECS task definition..."
+
+            aws ecs describe-task-definition \
+              --task-definition aws-devops-task \
+              --region $AWS_REGION \
+              --query taskDefinition \
+              --output json > task-definition.json
+
+            echo "Updating container image to $ECR_IMAGE"
+
+            python3 - "$ECR_IMAGE" <<'PY'
+import json
+import sys
+
+image = sys.argv[1]
+path = "task-definition.json"
+
+with open(path) as f:
+    task = json.load(f)
+
+container_found = False
+
+for container in task["containerDefinitions"]:
+    if container["name"] == "aws-devops-container":
+        container["image"] = image
+        container_found = True
+
+if not container_found:
+    raise SystemExit("ERROR: ECS container not found")
+
+for key in [
+    "taskDefinitionArn",
+    "revision",
+    "status",
+    "requiresAttributes",
+    "compatibilities",
+    "registeredAt",
+    "registeredBy"
+]:
+    task.pop(key, None)
+
+with open(path, "w") as f:
+    json.dump(task, f)
+
+print("Task definition updated successfully")
+PY
+
+            echo "Registering new ECS task definition..."
+
+            NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+              --cli-input-json file://task-definition.json \
+              --region $AWS_REGION \
+              --query 'taskDefinition.taskDefinitionArn' \
+              --output text)
+
+            echo "New task definition: $NEW_TASK_DEF_ARN"
+
+            echo "Updating ECS service..."
+
+            aws ecs update-service \
+              --cluster aws-devops-cluster \
+              --service aws-devops-service \
+              --task-definition "$NEW_TASK_DEF_ARN" \
+              --region $AWS_REGION
+
+            echo "Waiting for ECS deployment..."
+
+            for i in $(seq 1 60); do
+
+                ROLLOUT=$(aws ecs describe-services \
+                  --cluster aws-devops-cluster \
+                  --services aws-devops-service \
+                  --region $AWS_REGION \
+                  --query 'services[0].deployments[?status==`PRIMARY`].rolloutState | [0]' \
+                  --output text)
+
+                RUNNING=$(aws ecs describe-services \
+                  --cluster aws-devops-cluster \
+                  --services aws-devops-service \
+                  --region $AWS_REGION \
+                  --query 'services[0].runningCount' \
+                  --output text)
+
+                DESIRED=$(aws ecs describe-services \
+                  --cluster aws-devops-cluster \
+                  --services aws-devops-service \
+                  --region $AWS_REGION \
+                  --query 'services[0].desiredCount' \
+                  --output text)
+
+                PENDING=$(aws ecs describe-services \
+                  --cluster aws-devops-cluster \
+                  --services aws-devops-service \
+                  --region $AWS_REGION \
+                  --query 'services[0].pendingCount' \
+                  --output text)
+
+                echo "Rollout: $ROLLOUT | Running: $RUNNING | Desired: $DESIRED | Pending: $PENDING"
+
+                if [ "$ROLLOUT" = "COMPLETED" ] && \
+                   [ "$RUNNING" = "$DESIRED" ] && \
+                   [ "$PENDING" = "0" ]; then
+                    echo "ECS deployment completed successfully!"
+                    exit 0
+                fi
+
+                if [ "$ROLLOUT" = "FAILED" ]; then
+                    echo "ECS deployment failed!"
+                    exit 1
+                fi
+
+                sleep 15
+            done
+
+            echo "ECS deployment timed out after 15 minutes."
+            exit 1
+        '''
+    }
+}
