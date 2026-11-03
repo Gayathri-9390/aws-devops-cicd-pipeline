@@ -2,13 +2,13 @@
 pipeline {
     agent any
 
-    environment {
-        AWS_REGION = 'ap-south-1'
-        ECR_REGISTRY = '025881472816.dkr.ecr.ap-south-1.amazonaws.com'
-        ECR_REPOSITORY = 'aws-devops-app'
-        IMAGE_TAG = 'v2'
-        ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-    }
+   environment {
+    AWS_REGION = 'ap-south-1'
+    ECR_REGISTRY = '025881472816.dkr.ecr.ap-south-1.amazonaws.com'
+    ECR_REPOSITORY = 'aws-devops-app'
+    IMAGE_TAG = "build-${BUILD_NUMBER}"
+    ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+}
 
     stages {
         stage('Checkout') {
