@@ -14,6 +14,30 @@ An Application Load Balancer (ALB) provides access to the deployed application, 
 
 ![AWS DevOps CI/CD Architecture](docs/aws-devops-architecture.png)
 
+## Architecture Diagram
+
+![AWS DevOps Architecture](docs/aws-devops-architecture.png)
+
+## Project Screenshots
+
+### 1. Jenkins CI/CD Pipeline
+![Jenkins Pipeline](screenshots/01-jenkins-pipeline.png)
+
+### 2. Amazon ECR - Docker Images
+![Amazon ECR](screenshots/02-ecr-images.png)
+
+### 3. Amazon ECS - Deployment Status
+![Amazon ECS Deployment](screenshots/03-ecs-service.png)
+
+### 4. Application Output
+![Flask Application](screenshots/04-application-output.png)
+
+### 5. Amazon CloudWatch - Application Logs
+![CloudWatch Logs](screenshots/05-cloudwatch-logs.png)
+
+### 6. ECS - CPU and Memory Monitoring
+![ECS Monitoring](screenshots/06-ecs-monitoring.png)
+
 **Pipeline flow:**
 
 Developer → GitHub → Jenkins → Python Validation → Docker Build → Application Test → Amazon ECR → Amazon ECS Fargate → Application Load Balancer → End Users
@@ -242,4 +266,4 @@ ECS service metrics are available for monitoring CPU and memory utilization.
 
 GitHub: [Gayathri-9390](https://github.com/Gayathri-9390)
 
-Project Repository: [AWS DevOps CI/CD Pipeline](https://github.com/Gayathri-9390/aws-devops-cicd-pipeline)
+Project Repository: [AWS DevOps CI/CD Pipeline](https://github.com/Gayathri-9390/aws-devops-cicd-pipeline)git add README.md docs/
