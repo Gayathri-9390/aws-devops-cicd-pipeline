@@ -42,14 +42,12 @@ Amazon CloudWatch collects application logs and ECS monitoring metrics.
 
 ```text
 aws-devops-cicd-pipeline/
-│
 ├── app.py
 ├── requirements.txt
 ├── Dockerfile
 ├── Jenkinsfile
 ├── .gitignore
 ├── README.md
-│
 └── docs/
     └── aws-devops-architecture.png
 ```
@@ -57,8 +55,6 @@ aws-devops-cicd-pipeline/
 ## Application Details
 
 The application is developed using Python Flask.
-
-**Available endpoints:**
 
 | Endpoint | Description |
 |---|---|
@@ -75,8 +71,6 @@ The application is developed using Python Flask.
 ```
 
 ## CI/CD Pipeline Workflow
-
-The Jenkins pipeline automates the following stages:
 
 ### 1. Source Code Checkout
 - Retrieves application source code from the GitHub repository.
@@ -141,7 +135,6 @@ The Jenkins pipeline automates the following stages:
 ## Running the Application Locally
 
 ### Prerequisites
-
 - Python 3.11 or later
 - pip
 - Git
@@ -150,7 +143,6 @@ The Jenkins pipeline automates the following stages:
 
 ```bash
 git clone https://github.com/Gayathri-9390/aws-devops-cicd-pipeline.git
-
 cd aws-devops-cicd-pipeline
 ```
 
@@ -166,8 +158,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open the following URLs:
-
+Open:
 - Homepage: `http://localhost:5000/`
 - Health check: `http://localhost:5000/health`
 
