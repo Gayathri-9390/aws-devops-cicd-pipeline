@@ -14,9 +14,6 @@ An Application Load Balancer (ALB) provides access to the deployed application, 
 
 ![AWS DevOps CI/CD Architecture](docs/aws-devops-architecture.png)
 
-## Architecture Diagram
-
-![AWS DevOps Architecture](docs/aws-devops-architecture.png)
 
 ## Project Screenshots
 
