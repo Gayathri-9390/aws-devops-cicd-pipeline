@@ -201,3 +201,15 @@ PY
         '''
     }
 }
+            }
+
+    post {
+        success {
+            echo 'CI/CD pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed. Check Console Output.'
+        }
+    }
+}
